@@ -851,12 +851,17 @@ Function Get-LogonTokenUMEnv
 
     try
     {
-        $subDomain = ([URI]$global:ParamsObj.PVWAURL).Host.Split('.')[0]
-        $pvwaDomain = ($global:ParamsObj.PVWAURL.ToLower() -replace "/passwordvault", "") -replace ".privilegecloud", ""
-        $global:URL_IdentityFQDN = ($global:URL_IdentityFQDN -f $pvwaDomain, $subDomain)
+        $hostParts = ([URI]$global:ParamsObj.PVWAURL).Host.Split('.')
+        $subDomain = $hostParts[0]
+        $envDomain = ($hostParts[2..($hostParts.Length - 1)] -join '.')
+        $global:URL_IdentityFQDN = ($global:URL_IdentityFQDN -f $envDomain, $subDomain)
 
-        # get the IdentityFQDN
-        $global:IdentityFQDN = (Invoke-Rest -URI $global:URL_IdentityFQDN -Command Get).fqdn
+        $discoveryResponse = Invoke-Rest -URI $global:URL_IdentityFQDN -Command Get
+        $identityService = $discoveryResponse.services | Where-Object { $_.service_name -eq "identity_user_portal" }
+        if ($null -eq $identityService) {
+            throw "Could not find 'identity_user_portal' service in tenant discovery response"
+        }
+        $global:IdentityFQDN = ([URI]$identityService.endpoints[0].api).Host
         $global:URL_Logoff = "https://" + $global:IdentityFQDN + "/security/Logout"
         $identityFQDNDomain = "https://" + $global:IdentityFQDN
         $identityTenantID = $global:IdentityFQDN.Split('.')[0]
@@ -1736,7 +1741,7 @@ function Set-URLParameters
     $global:URL_AccountGroupMembers = $URL_PVWAAPI + "/AccountGroups/{0}/Members"
 
     # UM URLS
-    $global:URL_IdentityFQDN = "{0}/shell/api/endpoint/{1}"
+    $global:URL_IdentityFQDN = "https://platform-discovery.{0}/api/public/tenant-discovery?allEndpoints=true&bySubdomain={1}"
 
 }
 
