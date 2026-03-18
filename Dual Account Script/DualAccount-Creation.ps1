@@ -781,6 +781,9 @@ Function Get-LogonHeader
 
     if ( [string]::IsNullOrEmpty($global:LogonHeader))
     {
+        # Enforce TLS 1.2 for all REST API calls
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
         # Disable SSL Verification to contact PVWA
         if ($DisableSSLVerify)
         {
