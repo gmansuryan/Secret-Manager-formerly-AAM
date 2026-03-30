@@ -1312,15 +1312,15 @@ function Edit-PlatformINIFile
         throw "Invalid Platform ZIP file - duplicate INI file"
     }
 
-    $iniContent = Get-Content -Path $fileEntries[0].FullName
-    $newPlatformID = $global:ParamsObj.platformID + "-DualAccount"
-    $iniContent = $iniContent.Replace($global:ParamsObj.platformID, $newPlatformID)
+    $iniContent = Get-Content -Path $fileEntries[0].FullName -Raw
+    $platformID = $global:ParamsObj.platformID
+    $iniContent = $iniContent -replace "(?m)^(PolicyID=\s*$([regex]::Escape($platformID)))", "`$1-DualAccount"
 
-    $platformNameArray = ($iniContent -match "PolicyName=([\w ]{1,})").Replace("PolicyName=", "").Split(';')
+    # Extract the PolicyName value from the raw string content
+    $platformName = if ($iniContent -match "(?m)^PolicyName=([^\r\n;]+)") { $Matches[1].TrimEnd() } else { "" }
 
-    # Found the Platform name, add Dual Accounts to it
-    $platformName = $platformNameArray[0].TrimEnd()
-    $iniContent = $iniContent.Replace($platformName, $platformName + " Dual Account")
+    # Found the Platform name, add " Dual Account" suffix only to the PolicyName line (not PolicyID)
+    $iniContent = $iniContent -replace "(?m)^(PolicyName=\s*$([regex]::Escape($platformName)))", "`$1 Dual Account"
 
     $iniContent | Out-File $fileEntries[0].FullName -Force -Encoding ASCII
 }
